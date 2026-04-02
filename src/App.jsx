@@ -349,7 +349,9 @@ export default function App(){
     </div>);
 
     // CHAT
-    if(page===PG.CHAT) return(<div style={{display:"flex",flexDirection:"column",height:"calc(100vh - 56px)"}}>
+    if(page===PG.CHAT) return(<div style={{display:"flex",flexDirection:"column",height:"calc(100vh - 56px)",position:"relative"}}>
+      <video autoPlay muted loop playsInline style={{position:"absolute",top:0,left:0,width:"100%",height:"100%",objectFit:"cover",opacity:0.08,zIndex:0,borderRadius:8}} src="https://files.catbox.moe/jcmrss.mp4"/>
+      <div style={{position:"relative",zIndex:1,display:"flex",flexDirection:"column",height:"100%"}}>
       <h2 style={S.pt}>          <LedImg size={30} style={{border:`2px solid ${C.accent}`}}/> Assistente Led <span style={{color:C.accent}}>AI</span></h2>
       <div style={{...S.card,flex:1,overflowY:"auto",display:"flex",flexDirection:"column",gap:10}}>
         {chat.map((m,i)=>{const ai=m.role==="assistant";return(
@@ -369,6 +371,7 @@ export default function App(){
         <button onClick={()=>send()} disabled={ld||!inp.trim()} style={{...S.btn(),padding:"0 20px",borderRadius:12,opacity:ld||!inp.trim()?0.4:1}}>Enviar</button>
       </div>
       <style>{`@keyframes bounce{0%,80%,100%{transform:translateY(0)}40%{transform:translateY(-6px)}}`}</style>
+      </div>
     </div>);
 
     // TURMAS
@@ -437,14 +440,15 @@ export default function App(){
 
   return(
     <div style={{display:"flex",minHeight:"100vh",background:"#f3f4f6",fontFamily:"'Inter','Segoe UI',sans-serif",color:"#111827",fontSize:14}}>
-      <div style={{width:215,background:sbColor,display:"flex",flexDirection:"column",position:"fixed",top:0,left:0,bottom:0,zIndex:100}}>
-        <div style={{padding:"18px 16px 14px",borderBottom:"1px solid rgba(255,255,255,0.15)"}}>
+      <div style={{width:215,background:sbColor,display:"flex",flexDirection:"column",position:"fixed",top:0,left:0,bottom:0,zIndex:100,overflow:"hidden"}}>
+        <video autoPlay muted loop playsInline style={{position:"absolute",top:0,left:0,width:"100%",height:"100%",objectFit:"cover",opacity:0.12,zIndex:0}} src="https://files.catbox.moe/85hlde.mp4"/>
+        <div style={{padding:"18px 16px 14px",borderBottom:"1px solid rgba(255,255,255,0.15)",position:"relative",zIndex:1}}>
           <div style={{display:"flex",alignItems:"center",gap:10}}><LedImg size={36}/>            <div><div style={{fontWeight:800,fontSize:16,color:"white"}}>Led <span style={{color:"#fca5a5"}}>AI</span></div><div style={{fontSize:8,color:"rgba(255,255,255,0.4)",letterSpacing:1}}>PLATAFORMA PEDAGÓGICA</div></div></div>
           {user&&<div style={{display:"flex",alignItems:"center",gap:8,marginTop:12}}><Avatar size={28}/><div style={{overflow:"hidden",flex:1}}><div style={{fontSize:11,color:"white",fontWeight:600,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{user.nome}</div><div style={{fontSize:9,color:"rgba(255,255,255,0.5)"}}>{isAdm?"Administrador":user.email}</div></div></div>}
           {admView&&<button onClick={admExit} style={{marginTop:8,width:"100%",padding:"6px",borderRadius:6,border:"1px solid rgba(255,255,255,0.3)",background:"rgba(255,255,255,0.1)",color:"white",fontSize:11,cursor:"pointer"}}>Voltar ao Admin</button>}
         </div>
-        <div style={{padding:"8px 0",flex:1}}>{navItems.map(n=><button key={n.id} onClick={()=>setPage(n.id)} style={{display:"flex",alignItems:"center",gap:9,padding:"10px 18px",border:"none",background:page===n.id?"rgba(255,255,255,0.15)":"transparent",color:"white",cursor:"pointer",width:"100%",textAlign:"left",fontSize:13,fontWeight:page===n.id?600:400,borderLeft:page===n.id?"3px solid white":"3px solid transparent",opacity:page===n.id?1:0.8}}>{n.l}</button>)}</div>
-        <div style={{padding:"8px 16px 10px",borderTop:"1px solid rgba(255,255,255,0.08)"}}>
+        <div style={{padding:"8px 0",flex:1,position:"relative",zIndex:1}}>{navItems.map(n=><button key={n.id} onClick={()=>setPage(n.id)} style={{display:"flex",alignItems:"center",gap:9,padding:"10px 18px",border:"none",background:page===n.id?"rgba(255,255,255,0.15)":"transparent",color:"white",cursor:"pointer",width:"100%",textAlign:"left",fontSize:13,fontWeight:page===n.id?600:400,borderLeft:page===n.id?"3px solid white":"3px solid transparent",opacity:page===n.id?1:0.8}}>{n.l}</button>)}</div>
+        <div style={{padding:"8px 16px 10px",borderTop:"1px solid rgba(255,255,255,0.08)",position:"relative",zIndex:1}}>
           <button onClick={doLogout} style={{width:"100%",padding:"7px",borderRadius:6,border:"1px solid rgba(255,255,255,0.2)",background:"transparent",color:"rgba(255,255,255,0.6)",fontSize:11,cursor:"pointer",marginBottom:6}}>Sair</button>
           <div style={{fontSize:10,color:"rgba(255,255,255,0.35)",textAlign:"center",letterSpacing:0.5}}>By: Vinicius Silva</div>
         </div>
