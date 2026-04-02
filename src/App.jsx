@@ -1,6 +1,11 @@
 import { useState, useRef, useEffect } from "react";
 
-import { db } from './storage.js';
+const db = {
+  async get(k) { try { const r = await window.storage.get(k); return r ? JSON.parse(r.value) : null; } catch { return null; } },
+  async set(k, v) { try { await window.storage.set(k, JSON.stringify(v)); } catch {} },
+  async getShared(k) { try { const r = await window.storage.get(k, true); return r ? JSON.parse(r.value) : null; } catch { return null; } },
+  async setShared(k, v) { try { await window.storage.set(k, JSON.stringify(v), true); } catch {} }
+};
 
 const SERIES_BASE=["1º Ano EF","2º Ano EF","3º Ano EF","4º Ano EF","5º Ano EF","6º Ano EF","7º Ano EF","8º Ano EF","9º Ano EF","1º Ano EM","2º Ano EM","3º Ano EM"];
 const LETRAS=["A","B","C","D","E","F","G","H"];
@@ -14,6 +19,16 @@ const LEDAI_URL="https://i.postimg.cc/XqbSgp2S/Whats-App-Image-2026-04-01-at-21-
 const LEDAI_FB="data:image/svg+xml,"+encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 80 80"><rect width="80" height="80" rx="16" fill="#b91c1c"/><text x="50%" y="54%" dominant-baseline="middle" text-anchor="middle" font-size="28" font-weight="800" fill="white" font-family="sans-serif">L</text></svg>');
 const GREETS=["E aí, professor(a)! Tô ligado e pronto pra ajudar. O que vamos planejar hoje?","Fala, mestre! Seu assistente pedagógico favorito tá on. Bora trabalhar?","Opa! LedAI na área. Me conta, qual turma vai dar trabalho hoje?"];
 const TIPS=["Dica: me peça 'plano de aula' + turma + assunto!","Sabia que posso sugerir o próximo conteúdo baseado no histórico?","Tenta: 'O que trabalhar depois com o 7º Ano EF A?'"];
+const ALL_PERMS=["ver_turmas","editar_turmas","ver_relatorios","editar_relatorios","ver_ocorrencias","editar_ocorrencias","ver_vistos","editar_vistos","ver_professores","bloquear_professores","deletar_professores","entrar_contas","alterar_cores","ver_logs","usar_ia"];
+const PERM_LABELS={"ver_turmas":"Ver turmas","editar_turmas":"Editar turmas","ver_relatorios":"Ver relatórios","editar_relatorios":"Editar relatórios","ver_ocorrencias":"Ver ocorrências","editar_ocorrencias":"Editar ocorrências","ver_vistos":"Ver vistos","editar_vistos":"Editar vistos","ver_professores":"Ver professores","bloquear_professores":"Bloquear professores","deletar_professores":"Deletar professores","entrar_contas":"Entrar em contas","alterar_cores":"Alterar cores do site","ver_logs":"Ver registro de atividades","usar_ia":"Usar assistente IA"};
+
+const EJS_SVC="service_th7mp2u",EJS_TPL="template_eipbxa6",EJS_PK="mHLFIoxuJ8yJdnsF";
+
+function genCode(){return String(Math.floor(100000+Math.random()*900000));}
+async function sendCode(email,name,code){
+  const r=await fetch("https://api.emailjs.com/api/v1.0/email/send",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({service_id:EJS_SVC,template_id:EJS_TPL,user_id:EJS_PK,template_params:{to_email:email,to_name:name||"Professor(a)",verification_code:code,from_name:"LedAI"}})});
+  if(!r.ok)throw new Error("Erro envio");
+}
 
 function LedImg({size=36,style:es={}}){
   const [s,setS]=useState(LEDAI_URL);
@@ -21,37 +36,29 @@ function LedImg({size=36,style:es={}}){
 }
 
 function Checklist({items,selected,onChange,label}){
-  if(!items||!items.length) return <div style={{fontSize:12,color:"#6b7280",fontStyle:"italic"}}>Nenhum item cadastrado.</div>;
+  if(!items||!items.length) return <div style={{fontSize:12,color:"#6b7280",fontStyle:"italic"}}>Nenhum item.</div>;
   const all=selected.length===items.length;
   const tog=n=>onChange(selected.includes(n)?selected.filter(x=>x!==n):[...selected,n]);
-  return(
-    <div>
-      <label style={{fontSize:11,color:"#6b7280",marginBottom:6,display:"block",textTransform:"uppercase",letterSpacing:0.5,fontWeight:500}}>{label}</label>
-      <div style={{border:"1px solid #e5e7eb",borderRadius:6,maxHeight:200,overflowY:"auto"}}>
-        <div onClick={()=>onChange(all?[]:items.map(a=>a.nome||a))} style={{display:"flex",alignItems:"center",gap:8,padding:"8px 12px",cursor:"pointer",background:"#f9fafb",borderBottom:"1px solid #e5e7eb",userSelect:"none"}}>
-          <div style={{width:16,height:16,borderRadius:3,border:`2px solid ${all?"#dc2626":"#d1d5db"}`,background:all?"#dc2626":"white",display:"flex",alignItems:"center",justifyContent:"center"}}>{all&&<svg width="10" height="10" viewBox="0 0 10 10"><path d="M2 5l2 2 4-4" stroke="white" strokeWidth="1.5" fill="none"/></svg>}</div>
-          <span style={{fontSize:12,fontWeight:600}}>Todos ({items.length})</span>
-          <span style={{marginLeft:"auto",fontSize:11,color:"#6b7280"}}>{selected.length} sel.</span>
-        </div>
-        {items.map((a,i)=>{const n=a.nome||a;const ch=selected.includes(n);return(
-          <div key={a.id||i} onClick={()=>tog(n)} style={{display:"flex",alignItems:"center",gap:8,padding:"7px 12px",cursor:"pointer",borderBottom:"1px solid #f3f4f6",background:ch?"#fef2f2":"white",userSelect:"none"}}>
-            <div style={{width:16,height:16,borderRadius:3,border:`2px solid ${ch?"#dc2626":"#d1d5db"}`,background:ch?"#dc2626":"white",display:"flex",alignItems:"center",justifyContent:"center"}}>{ch&&<svg width="10" height="10" viewBox="0 0 10 10"><path d="M2 5l2 2 4-4" stroke="white" strokeWidth="1.5" fill="none"/></svg>}</div>
-            <span style={{fontSize:13}}>{n}</span>
-          </div>
-        );})}
+  return(<div>
+    <label style={{fontSize:11,color:"#6b7280",marginBottom:6,display:"block",textTransform:"uppercase",letterSpacing:0.5,fontWeight:500}}>{label}</label>
+    <div style={{border:"1px solid #e5e7eb",borderRadius:6,maxHeight:200,overflowY:"auto"}}>
+      <div onClick={()=>onChange(all?[]:items.map(a=>a.nome||a))} style={{display:"flex",alignItems:"center",gap:8,padding:"8px 12px",cursor:"pointer",background:"#f9fafb",borderBottom:"1px solid #e5e7eb",userSelect:"none"}}>
+        <div style={{width:16,height:16,borderRadius:3,border:`2px solid ${all?"#dc2626":"#d1d5db"}`,background:all?"#dc2626":"white",display:"flex",alignItems:"center",justifyContent:"center"}}>{all&&<svg width="10" height="10" viewBox="0 0 10 10"><path d="M2 5l2 2 4-4" stroke="white" strokeWidth="1.5" fill="none"/></svg>}</div>
+        <span style={{fontSize:12,fontWeight:600}}>Todos ({items.length})</span>
+        <span style={{marginLeft:"auto",fontSize:11,color:"#6b7280"}}>{selected.length} sel.</span>
       </div>
+      {items.map((a,i)=>{const n=a.nome||a;const ch=selected.includes(n);return(
+        <div key={a.id||i} onClick={()=>tog(n)} style={{display:"flex",alignItems:"center",gap:8,padding:"7px 12px",cursor:"pointer",borderBottom:"1px solid #f3f4f6",background:ch?"#fef2f2":"white",userSelect:"none"}}>
+          <div style={{width:16,height:16,borderRadius:3,border:`2px solid ${ch?"#dc2626":"#d1d5db"}`,background:ch?"#dc2626":"white",display:"flex",alignItems:"center",justifyContent:"center"}}>{ch&&<svg width="10" height="10" viewBox="0 0 10 10"><path d="M2 5l2 2 4-4" stroke="white" strokeWidth="1.5" fill="none"/></svg>}</div>
+          <span style={{fontSize:13}}>{n}</span>
+        </div>);})}
     </div>
-  );
+  </div>);
 }
 
 function MindMap({data}){
-  const [dims,setDims]=useState({w:860,h:500});
-  const ref=useRef(null);
-  useEffect(()=>{
-    const obs=new ResizeObserver(([e])=>setDims({w:e.contentRect.width,h:Math.max(460,e.contentRect.width*0.58)}));
-    if(ref.current)obs.observe(ref.current.parentElement);
-    return()=>obs.disconnect();
-  },[]);
+  const [dims,setDims]=useState({w:860,h:500});const ref=useRef(null);
+  useEffect(()=>{const obs=new ResizeObserver(([e])=>setDims({w:e.contentRect.width,h:Math.max(460,e.contentRect.width*0.58)}));if(ref.current)obs.observe(ref.current.parentElement);return()=>obs.disconnect();},[]);
   if(!data?.nodes?.[0])return null;
   const root=data.nodes[0],ch=root.children||[],cx=dims.w/2,cy=dims.h/2,r1=Math.min(dims.w,dims.h)*0.27,els=[];
   const wr=(t,mx=13)=>{const ws=t.split(" "),ls=[];let c="";for(const w of ws){if((c+" "+w).trim().length>mx){if(c)ls.push(c);c=w;}else c=(c+" "+w).trim();}if(c)ls.push(c);return ls;};
@@ -62,20 +69,42 @@ function MindMap({data}){
   return <svg ref={ref} viewBox={`0 0 ${dims.w} ${dims.h}`} width="100%"><rect width={dims.w} height={dims.h} fill="rgba(255,245,245,0.03)" rx={10}/>{els}</svg>;
 }
 
+// ─── Verification Code Input ───
+function CodeInput({length=6,value,onChange}){
+  const refs=useRef([]);
+  const vals=value.split("").concat(Array(length).fill("")).slice(0,length);
+  const handle=(i,v)=>{if(!/^\d?$/.test(v))return;const nv=[...vals];nv[i]=v;onChange(nv.join(""));if(v&&i<length-1)refs.current[i+1]?.focus();};
+  const onKey=(i,e)=>{if(e.key==="Backspace"&&!vals[i]&&i>0){refs.current[i-1]?.focus();}};
+  const onPaste=(e)=>{e.preventDefault();const p=e.clipboardData.getData("text").replace(/\D/g,"").slice(0,length);if(p){onChange(p.padEnd(length,"").slice(0,length));const fi=Math.min(p.length,length-1);refs.current[fi]?.focus();}};
+  return(<div style={{display:"flex",gap:8,justifyContent:"center"}}>
+    {vals.map((v,i)=><input key={i} ref={el=>refs.current[i]=el} type="text" inputMode="numeric" maxLength={1} value={v||""} onChange={e=>handle(i,e.target.value)} onKeyDown={e=>onKey(i,e)} onPaste={i===0?onPaste:undefined} style={{width:44,height:52,textAlign:"center",fontSize:22,fontWeight:700,borderRadius:10,border:`2px solid ${v?"rgba(255,255,255,0.4)":"rgba(255,255,255,0.15)"}`,background:v?"rgba(255,255,255,0.1)":"rgba(255,255,255,0.04)",color:"white",outline:"none",caretColor:"#fca5a5",transition:"border .2s, background .2s"}} onFocus={e=>{e.target.style.borderColor="#fca5a5";e.target.style.background="rgba(255,255,255,0.12)";}} onBlur={e=>{e.target.style.borderColor=v?"rgba(255,255,255,0.4)":"rgba(255,255,255,0.15)";e.target.style.background=v?"rgba(255,255,255,0.1)":"rgba(255,255,255,0.04)";}}/>)}
+  </div>);
+}
+
 export default function App(){
-  // ALL state declarations at top level - no conditional hooks
   const [page,setPage]=useState(PG.PERFIL);
   const [user,setUser]=useState(null);
   const [isAdm,setIsAdm]=useState(false);
   const [loginMode,setLoginMode]=useState("login");
   const [lf,setLf]=useState({email:"",senha:"",nome:"",escola:"",materia:""});
   const [lErr,setLErr]=useState("");
+  // Verification states
+  const [verifyStep,setVerifyStep]=useState(false);
+  const [vCode,setVCode]=useState("");
+  const [vInput,setVInput]=useState("");
+  const [vErr,setVErr]=useState("");
+  const [vSending,setVSending]=useState(false);
+  const [vCooldown,setVCooldown]=useState(0);
+  const [pendingProfile,setPendingProfile]=useState(null);
+
   const [profiles,setProfiles]=useState({});
   const [siteS,setSiteS]=useState({ac:"#dc2626",sb:"#b91c1c"});
   const [logs,setLogs]=useState([]);
   const [admView,setAdmView]=useState(null);
   const [subAdm,setSubAdm]=useState([]);
   const [newAdm,setNewAdm]=useState({email:"",nome:"",senha:""});
+  const [expandedAdm,setExpandedAdm]=useState(null);
+  const [editAdmPw,setEditAdmPw]=useState("");
   const [turmas,setTurmas]=useState([]);
   const [chat,setChat]=useState([]);
   const [mm,setMm]=useState(null);
@@ -111,6 +140,9 @@ export default function App(){
   const hrRef=useRef(null);
   const btmRef=useRef(null);
 
+  // Cooldown timer
+  useEffect(()=>{if(vCooldown<=0)return;const t=setTimeout(()=>setVCooldown(c=>c-1),1000);return()=>clearTimeout(t);},[vCooldown]);
+
   const ns=k=>user?`led_${user.email}_${k}`:null;
   const mats=()=>(user?.materia||"").split(",").map(m=>m.trim()).filter(Boolean);
   const aluOf=n=>(turmas.find(t=>t.nome===n)?.alunos||[]);
@@ -118,7 +150,7 @@ export default function App(){
   const accent=siteS.ac||"#dc2626";
   const sbColor=siteS.sb||"#b91c1c";
 
-  const logAct=async(a)=>{const e={id:Date.now(),user:user?.email||"?",action:a,time:now()};const l=await db.getShared("led_logs")||[];const u=[e,...l].slice(0,500);await db.setShared("led_logs",u);setLogs(u);};
+  const logAct=async a=>{const e={id:Date.now(),user:user?.email||"?",action:a,time:now()};const l=await db.getShared("led_logs")||[];const u=[e,...l].slice(0,500);await db.setShared("led_logs",u);setLogs(u);};
   const sv=async(k,v)=>{const n=ns(k);if(n)await db.set(n,v);};
 
   useEffect(()=>{(async()=>{const s=await db.getShared("led_site_s");if(s)setSiteS(s);const p=await db.get("led_profiles");if(p)setProfiles(p);const a=await db.getShared("led_sub_adm");if(a)setSubAdm(a);})();},[]);
@@ -137,6 +169,38 @@ export default function App(){
 
   useEffect(()=>{btmRef.current?.scrollIntoView({behavior:"smooth"});},[chat,ld]);
 
+  // Send verification email
+  const doSendCode=async()=>{
+    const em=lf.email.trim().toLowerCase(),nm=lf.nome.trim();
+    const code=genCode();
+    setVSending(true);setVErr("");
+    try{
+      await sendCode(em,nm,code);
+      setVCode(code);setVInput("");setVerifyStep(true);setVCooldown(60);
+    }catch{setVErr("Falha ao enviar o código. Tente novamente.");}
+    setVSending(false);
+  };
+
+  const doResend=async()=>{
+    if(vCooldown>0)return;
+    await doSendCode();
+  };
+
+  const doVerify=async()=>{
+    if(vInput.length<6){setVErr("Digite o código completo.");return;}
+    if(vInput!==vCode){setVErr("Código incorreto. Verifique e tente novamente.");return;}
+    // Code matches — complete registration
+    const em=lf.email.trim().toLowerCase();
+    const np={email:em,senha:lf.senha,nome:lf.nome.trim(),escola:lf.escola.trim(),materia:lf.materia.trim(),avatar:null,blocked:false};
+    const ps=await db.get("led_profiles")||{};
+    ps[em]=np;await db.set("led_profiles",ps);setProfiles(ps);
+    setUser(np);setIsAdm(false);setPage(PG.HOME);
+    // Reset verification
+    setVerifyStep(false);setVCode("");setVInput("");setVErr("");setPendingProfile(null);
+  };
+
+  const cancelVerify=()=>{setVerifyStep(false);setVCode("");setVInput("");setVErr("");};
+
   // AUTH
   const doLogin=async()=>{
     setLErr("");const em=lf.email.trim().toLowerCase(),pw=lf.senha;
@@ -146,18 +210,20 @@ export default function App(){
       const chief=em===ADM_EMAIL&&pw===ADM_SENHA;
       const sub=subs.find(a=>a.email===em&&a.senha===pw);
       if(!chief&&!sub){setLErr("Credenciais incorretas.");return;}
-      setUser({email:em,nome:chief?"Admin Chefe":(sub?.nome||"Admin"),isChief:chief,role:"admin"});
-      setIsAdm(true);setPage(PG.ADMIN);return;
+      const u={email:em,nome:chief?"Admin Chefe":(sub?.nome||"Admin"),isChief:chief,role:"admin",perms:chief?ALL_PERMS:(sub?.perms||[])};
+      setUser(u);setIsAdm(true);setPage(PG.ADMIN);return;
     }
     const ps=await db.get("led_profiles")||{};
     if(loginMode==="cadastro"){
       if(!lf.nome.trim()){setLErr("Informe nome.");return;}
       if(ps[em]){setLErr("E-mail já existe.");return;}
       if(pw.length<6){setLErr("Senha: min 6 chars.");return;}
-      const np={email:em,senha:pw,nome:lf.nome.trim(),escola:lf.escola.trim(),materia:lf.materia.trim(),avatar:null,blocked:false};
-      ps[em]=np;await db.set("led_profiles",ps);setProfiles(ps);setUser(np);setIsAdm(false);setPage(PG.HOME);
+      // Send verification code instead of creating account immediately
+      await doSendCode();
     } else {
-      const p=ps[em];      if(!p||p.senha!==pw){setLErr(em && ps[em] ? "senha" : "email");return;}
+      const p=ps[em];
+      if(!p){setLErr("email");return;}
+      if(p.senha!==pw){setLErr("senha");return;}
       if(p.blocked){setLErr("Conta bloqueada.");return;}
       setUser(p);setIsAdm(false);setPage(PG.HOME);
     }
@@ -166,7 +232,6 @@ export default function App(){
   const updProf=async f=>{const ps=await db.get("led_profiles")||{};const u={...user,...f};ps[user.email]=u;await db.set("led_profiles",ps);setProfiles(ps);setUser(u);};
   const handleAvatar=async e=>{const f=e.target.files?.[0];if(!f)return;try{const b=await new Promise((r,j)=>{const x=new FileReader();x.onload=()=>r(x.result);x.onerror=j;x.readAsDataURL(f);});const img=new Image();img.onload=async()=>{const c=document.createElement("canvas");c.width=128;c.height=128;const ctx=c.getContext("2d");const m=Math.min(img.width,img.height);ctx.drawImage(img,(img.width-m)/2,(img.height-m)/2,m,m,0,0,128,128);await updProf({avatar:c.toDataURL("image/jpeg",0.7)});};img.src=b;}catch{}e.target.value="";};
 
-  // Turmas
   const addTurma=async()=>{if(!nTur.serie||!nTur.letra)return;const n=`${nTur.serie} ${nTur.letra}`;if(turmas.find(t=>t.nome===n))return;const u=[...turmas,{nome:n,serie:nTur.serie,letra:nTur.letra,ultimoAssunto:{},historico:[],alunos:[]}];setTurmas(u);await sv("turmas",u);setNTur({serie:"",letra:""});};
   const rmTurma=async n=>{const u=turmas.filter(t=>t.nome!==n);setTurmas(u);await sv("turmas",u);if(selT?.nome===n)setSelT(null);};
   const updAlunos=async(tn,al)=>{const u=turmas.map(t=>t.nome===tn?{...t,alunos:al}:t);setTurmas(u);await sv("turmas",u);setSelT(p=>p?.nome===tn?{...p,alunos:al}:p);};
@@ -174,28 +239,28 @@ export default function App(){
   const svEditAlu=async()=>{if(!editAlu||!selT)return;await updAlunos(selT.nome,(selT.alunos||[]).map(a=>a.id===editAlu.id?editAlu:a));setEditAlu(null);};
   const rmAlu=async id=>{if(!selT)return;await updAlunos(selT.nome,(selT.alunos||[]).filter(a=>a.id!==id));};
 
-  const handlePdf=async e=>{const f=e.target.files?.[0];if(!f)return;setPdfLd(true);setPdfRes(null);try{const b=await new Promise((r,j)=>{const x=new FileReader();x.onload=()=>r(x.result.split(",")[1]);x.onerror=j;x.readAsDataURL(f);});const rr=await fetch("https://api.anthropic.com/v1/messages",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({model:"claude-sonnet-4-20250514",max_tokens:1200,system:'Extraia alunos. JSON: {"alunos":[{"nome":"N","nascimento":"DD/MM/AAAA"}]}',messages:[{role:"user",content:[{type:"document",source:{type:"base64",media_type:"application/pdf",data:b}},{type:"text",text:"Extraia alunos."}]}]})});const d=await rr.json();const p=JSON.parse((d.content?.map(x=>x.text||"").join("")||"").replace(/```json|```/g,"").trim());setPdfRes(p.alunos||[]);}catch{setPdfRes("erro");}setPdfLd(false);e.target.value="";};
+  const handleFileImport=async e=>{
+    const f=e.target.files?.[0];if(!f)return;setPdfLd(true);setPdfRes(null);
+    try{const b=await new Promise((r,j)=>{const x=new FileReader();x.onload=()=>r(x.result.split(",")[1]);x.onerror=j;x.readAsDataURL(f);});const mt=f.type||"application/pdf";const dt=mt.startsWith("image/")?"image":"document";const rr=await fetch("https://api.anthropic.com/v1/messages",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({model:"claude-sonnet-4-20250514",max_tokens:1200,system:'Extraia alunos. JSON: {"alunos":[{"nome":"N","nascimento":"DD/MM/AAAA"}]}. Sem nascimento use "".',messages:[{role:"user",content:[{type:dt,source:{type:"base64",media_type:mt,data:b}},{type:"text",text:"Extraia a lista de alunos com nome e nascimento."}]}]})});const d=await rr.json();const p=JSON.parse((d.content?.map(x=>x.text||"").join("")||"").replace(/```json|```/g,"").trim());setPdfRes(p.alunos||[]);}catch{setPdfRes("erro");}
+    setPdfLd(false);e.target.value="";
+  };
   const confirmPdf=async()=>{if(!pdfRes||pdfRes==="erro"||!selT)return;await updAlunos(selT.nome,[...(selT.alunos||[]),...pdfRes.map(a=>({id:Date.now()+Math.random(),nome:a.nome,nascimento:a.nascimento}))]);setPdfRes(null);};
 
   const handleHrPdf=async e=>{const f=e.target.files?.[0];if(!f)return;setHrPdfLd(true);try{const b=await new Promise((r,j)=>{const x=new FileReader();x.onload=()=>r(x.result.split(",")[1]);x.onerror=j;x.readAsDataURL(f);});const mt=f.type.startsWith("image/")?f.type:"application/pdf";const dt=mt.startsWith("image/")?"image":"document";const rr=await fetch("https://api.anthropic.com/v1/messages",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({model:"claude-sonnet-4-20250514",max_tokens:2000,system:`Extraia grade horária. Dias:${DIAS.join(",")}. Horários:${HORAS.join(",")}. JSON: {"horarios":{"Segunda_07:00":"6A Mat",...}}`,messages:[{role:"user",content:[{type:dt,source:{type:"base64",media_type:mt,data:b}},{type:"text",text:"Extraia horários."}]}]})});const d=await rr.json();const p=JSON.parse((d.content?.map(x=>x.text||"").join("")||"").replace(/```json|```/g,"").trim());if(p.horarios){setHrs(p.horarios);await sv("hrs",p.horarios);}}catch{}setHrPdfLd(false);e.target.value="";};
 
-  // AI
-  const send=async ci=>{const t=(ci||inp).trim();if(!t||ld)return;const um={role:"user",content:t};const nh=[...chat,um];setChat(nh);setInp("");setLd(true);try{const sys=`Você é LedAI, assistente pedagógico com personalidade! Profissional mas descontraído.\nProfessor: ${user?.nome} | Escola: ${user?.escola||"?"} | Matérias: ${mats().join(", ")||"?"}\nTurmas:\n${turmas.map(t=>`  - ${t.nome}: alunos=[${(t.alunos||[]).map(a=>a.nome).join(", ")||"—"}]`).join("\n")||"  Nenhuma."}\nREGRAS:\n1. Plano → JSON: {"tipo":"plano","titulo":"...","serie":"...","turma":"...","materia":"...","assunto":"...","nodes":[{"id":"root","label":"T","color":"#c0392b","children":[...]}]}\n2. Sugestões → {"tipo":"sugestoes","lista":[...]}\n3. Normal: texto com personalidade. Termine com pergunta.`;const rr=await fetch("https://api.anthropic.com/v1/messages",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({model:"claude-sonnet-4-20250514",max_tokens:1200,system:sys,messages:nh.slice(-14).map(m=>({role:m.role,content:m.content}))})});const d=await rr.json();const tx=d.content?.map(x=>x.text||"").join("")||"Erro.";let ac=tx;try{const p=JSON.parse(tx.replace(/```json|```/g,"").trim());if(p.tipo==="plano"){setMm(p);await sv("mm",p);const u=turmas.map(tt=>(tt.nome===p.turma||tt.serie===p.serie)?{...tt,ultimoAssunto:{...(tt.ultimoAssunto||{}),[p.materia]:p.assunto}}:tt);setTurmas(u);await sv("turmas",u);ac=`Plano montado: "${p.titulo}" para ${p.turma||p.serie}!`;}else if(p.tipo==="sugestoes"){setSugs(p.lista||[]);await sv("sugs",p.lista||[]);ac="Sugestões geradas!";}}catch{}const fh=[...nh,{role:"assistant",content:ac}];setChat(fh);await sv("chat",fh.slice(-30));}catch{setChat([...nh,{role:"assistant",content:"Ops, erro de conexão!"}]);}setLd(false);};
+  const send=async ci=>{const t=(ci||inp).trim();if(!t||ld)return;const um={role:"user",content:t};const nh=[...chat,um];setChat(nh);setInp("");setLd(true);try{const sys=`Você é LedAI, assistente pedagógico com personalidade! Profissional mas descontraído.\nProfessor: ${user?.nome} | Escola: ${user?.escola||"?"} | Matérias: ${mats().join(", ")||"?"}\nTurmas:\n${turmas.map(t=>`  - ${t.nome}: alunos=[${(t.alunos||[]).map(a=>a.nome).join(", ")||"—"}]`).join("\n")||"  Nenhuma."}\nREGRAS:\n1. Plano → JSON: {"tipo":"plano","titulo":"...","serie":"...","turma":"...","materia":"...","assunto":"...","nodes":[{"id":"root","label":"T","color":"#c0392b","children":[...]}]}\n2. Sugestões → {"tipo":"sugestoes","lista":[...]}\n3. Normal: texto com personalidade. Termine com pergunta.`;const rr=await fetch("https://api.anthropic.com/v1/messages",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({model:"claude-sonnet-4-20250514",max_tokens:1200,system:sys,messages:nh.slice(-14).map(m=>({role:m.role,content:m.content}))})});const d=await rr.json();const tx=d.content?.map(x=>x.text||"").join("")||"Erro.";let ac=tx;try{const p=JSON.parse(tx.replace(/```json|```/g,"").trim());if(p.tipo==="plano"){setMm(p);await sv("mm",p);ac=`Plano montado: "${p.titulo}" para ${p.turma||p.serie}!`;}else if(p.tipo==="sugestoes"){setSugs(p.lista||[]);await sv("sugs",p.lista||[]);ac="Sugestões geradas!";}}catch{}const fh=[...nh,{role:"assistant",content:ac}];setChat(fh);await sv("chat",fh.slice(-30));}catch{setChat([...nh,{role:"assistant",content:"Ops, erro de conexão!"}]);}setLd(false);};
 
-  // Records
-  const addRel=async()=>{const er={obs:!nRel.obs.trim(),mat:!nRel.materia};setRelErr(er);if(er.obs||er.mat||!nRel.turma||!nRel.assunto)return;const u=[{...nRel,id:Date.now(),registradoEm:now()},...rels];setRels(u);await sv("rels",u);setNewRel({turma:"",materia:"",assunto:"",obs:""});setRelErr({obs:false,mat:false});};
-  // Fix: setNewRel -> setNRel
-  const addRelFixed=async()=>{const er={obs:!nRel.obs.trim(),mat:!nRel.materia};setRelErr(er);if(er.obs||er.mat||!nRel.turma||!nRel.assunto)return;const u=[{...nRel,id:Date.now(),registradoEm:now()},...rels];setRels(u);await sv("rels",u);setNRel({turma:"",materia:"",assunto:"",obs:""});setRelErr({obs:false,mat:false});};
+  const addRel=async()=>{const er={obs:!nRel.obs.trim(),mat:!nRel.materia};setRelErr(er);if(er.obs||er.mat||!nRel.turma||!nRel.assunto)return;const u=[{...nRel,id:Date.now(),registradoEm:now()},...rels];setRels(u);await sv("rels",u);setNRel({turma:"",materia:"",assunto:"",obs:""});setRelErr({obs:false,mat:false});};
   const addOco=async()=>{if(!nOco.desc.trim()){setOcoErr(true);return;}if(!nOco.aluno.length)return;setOcoErr(false);const u=[{...nOco,aluno:nOco.aluno.join(", "),id:Date.now(),registradoEm:now()},...ocos];setOcos(u);await sv("ocos",u);setNOco({aluno:[],turma:"",tipo:"",desc:""});};
   const addVis=async()=>{if(!nVis.turma||!nVis.ativ||!nVis.alunos.length)return;const u=[{...nVis,alunos:nVis.alunos.join(", "),id:Date.now(),registradoEm:now()},...vists];setVists(u);await sv("vists",u);setNVis({turma:"",ativ:"",alunos:[]});};
   const rmRec=async(k,s,l,id)=>{const u=l.filter(x=>x.id!==id);s(u);await sv(k,u);};
   const svHr=async(d,h,v)=>{const u={...hrs,[`${d}_${h}`]:v};setHrs(u);await sv("hrs",u);};
 
-  // Admin
   const admUpdS=async s=>{const u={...siteS,...s};setSiteS(u);await db.setShared("led_site_s",u);};
   const admBlock=async(em,b)=>{const ps=await db.get("led_profiles")||{};if(ps[em]){ps[em].blocked=b;await db.set("led_profiles",ps);setProfiles(ps);}};
   const admDel=async em=>{const ps=await db.get("led_profiles")||{};delete ps[em];await db.set("led_profiles",ps);setProfiles(ps);};
-  const admAddSub=async(em,nm,pw)=>{const s=await db.getShared("led_sub_adm")||[];if(s.find(a=>a.email===em))return;const u=[...s,{email:em,nome:nm,senha:pw}];setSubAdm(u);await db.setShared("led_sub_adm",u);};
+  const admAddSub=async(em,nm,pw)=>{if(!em||!nm||!pw)return;const s=await db.getShared("led_sub_adm")||[];if(s.find(a=>a.email===em))return;const u=[...s,{email:em,nome:nm,senha:pw,perms:[...ALL_PERMS],blocked:false}];setSubAdm(u);await db.setShared("led_sub_adm",u);};
+  const admUpdateSub=async(em,fields)=>{const s=await db.getShared("led_sub_adm")||[];const u=s.map(a=>a.email===em?{...a,...fields}:a);setSubAdm(u);await db.setShared("led_sub_adm",u);};
   const admRmSub=async em=>{const s=await db.getShared("led_sub_adm")||[];const u=s.filter(a=>a.email!==em);setSubAdm(u);await db.setShared("led_sub_adm",u);};
   const admEnter=async em=>{const ps=await db.get("led_profiles")||{};const p=ps[em];if(!p)return;setAdmView(user);setUser(p);setIsAdm(false);setPage(PG.HOME);};
   const admExit=()=>{if(admView){setUser(admView);setIsAdm(true);setAdmView(null);setPage(PG.ADMIN);}};
@@ -225,42 +290,89 @@ export default function App(){
     return <div style={s}><svg width={size*0.5} height={size*0.5} viewBox="0 0 24 24" fill="none"><circle cx="12" cy="8" r="4" fill="rgba(255,255,255,0.6)"/><path d="M4 20c0-3.3 2.7-6 6-6h4c3.3 0 6 2.7 6 6" stroke="rgba(255,255,255,0.6)" strokeWidth="1.5" fill="none"/></svg></div>;
   };
 
-  // ── LOGIN ─────────────────────────────────────────────────────────────────
-  if(page===PG.PERFIL&&!user) return(
+  // ─── LOGIN SCREEN ───
+  if(!user) return(
     <div style={{minHeight:"100vh",background:"#0a0a1a",display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"'Inter',sans-serif",position:"relative",overflow:"hidden"}}>
       <video autoPlay muted loop playsInline style={{position:"absolute",top:0,left:0,width:"100%",height:"100%",objectFit:"cover",opacity:0.35,zIndex:0}} src="https://files.catbox.moe/d18l2f.mp4"/>
       <div style={{position:"absolute",inset:0,background:"linear-gradient(135deg,rgba(26,26,46,0.75),rgba(22,33,62,0.65),rgba(15,52,96,0.75))",zIndex:1}}/>
       <div style={{position:"absolute",bottom:12,left:0,right:0,textAlign:"center",fontSize:12,color:"rgba(255,255,255,0.3)",letterSpacing:1.5,fontWeight:600,zIndex:2}}>By: Vinicius Silva</div>
-      <div style={{width:400,maxWidth:"90vw",zIndex:2,position:"relative"}}>
+      <div style={{width:420,maxWidth:"92vw",zIndex:2,position:"relative"}}>
         <div style={{textAlign:"center",marginBottom:28}}>
           <div style={{display:"flex",justifyContent:"center",marginBottom:12}}><LedImg size={64} style={{borderRadius:16,border:"2px solid rgba(255,255,255,0.15)"}}/></div>
           <div style={{fontSize:26,fontWeight:800,color:"white",letterSpacing:-1}}>Led <span style={{color:"#fca5a5"}}>AI</span></div>
           <div style={{fontSize:12,color:"rgba(255,255,255,0.5)",marginTop:4}}>Plataforma Pedagógica Inteligente</div>
         </div>
         <div style={{background:"rgba(255,255,255,0.07)",backdropFilter:"blur(20px)",borderRadius:16,padding:28,border:"1px solid rgba(255,255,255,0.1)"}}>
-          <div style={{display:"flex",gap:0,marginBottom:20,background:"rgba(255,255,255,0.05)",borderRadius:8,overflow:"hidden"}}>
-            {[{m:"login",l:"Entrar"},{m:"cadastro",l:"Cadastro"},{m:"admin",l:"Admin"}].map(t=>(
-              <button key={t.m} onClick={()=>{setLoginMode(t.m);setLErr("");}} style={{flex:1,padding:"10px 0",border:"none",background:loginMode===t.m?"rgba(255,255,255,0.15)":"transparent",color:loginMode===t.m?"white":"rgba(255,255,255,0.5)",fontSize:12,fontWeight:loginMode===t.m?700:400,cursor:"pointer"}}>{t.l}</button>
-            ))}
-          </div>
-          {loginMode==="admin"&&<div style={{padding:"10px 14px",background:"rgba(220,38,38,0.15)",borderRadius:8,marginBottom:14,fontSize:12,color:"#fca5a5"}}>Acesso restrito a administradores.</div>}
-          {loginMode==="cadastro"&&<>
-            <div style={{marginBottom:12}}><label style={{fontSize:10,color:"rgba(255,255,255,0.5)",textTransform:"uppercase",letterSpacing:0.5,display:"block",marginBottom:4}}>Nome</label><input style={{width:"100%",padding:"10px 14px",borderRadius:8,border:"1px solid rgba(255,255,255,0.15)",background:"rgba(255,255,255,0.05)",color:"white",fontSize:14,outline:"none",boxSizing:"border-box"}} value={lf.nome} onChange={e=>setLf(p=>({...p,nome:e.target.value}))}/></div>
-            <div style={{marginBottom:12}}><label style={{fontSize:10,color:"rgba(255,255,255,0.5)",textTransform:"uppercase",letterSpacing:0.5,display:"block",marginBottom:4}}>Escola</label><input style={{width:"100%",padding:"10px 14px",borderRadius:8,border:"1px solid rgba(255,255,255,0.15)",background:"rgba(255,255,255,0.05)",color:"white",fontSize:14,outline:"none",boxSizing:"border-box"}} value={lf.escola} onChange={e=>setLf(p=>({...p,escola:e.target.value}))}/></div>
-            <div style={{marginBottom:12}}><label style={{fontSize:10,color:"rgba(255,255,255,0.5)",textTransform:"uppercase",letterSpacing:0.5,display:"block",marginBottom:4}}>Matérias (vírgula)</label><input style={{width:"100%",padding:"10px 14px",borderRadius:8,border:"1px solid rgba(255,255,255,0.15)",background:"rgba(255,255,255,0.05)",color:"white",fontSize:14,outline:"none",boxSizing:"border-box"}} value={lf.materia} onChange={e=>setLf(p=>({...p,materia:e.target.value}))} placeholder="Matemática, Português..."/></div>
-          </>}
-          <div style={{marginBottom:12}}><label style={{fontSize:10,color:"rgba(255,255,255,0.5)",textTransform:"uppercase",letterSpacing:0.5,display:"block",marginBottom:4}}>E-mail</label><input style={{width:"100%",padding:"10px 14px",borderRadius:8,border:"1px solid rgba(255,255,255,0.15)",background:"rgba(255,255,255,0.05)",color:"white",fontSize:14,outline:"none",boxSizing:"border-box"}} type="email" value={lf.email} onChange={e=>setLf(p=>({...p,email:e.target.value}))}/></div>
-          <div style={{marginBottom:16}}><label style={{fontSize:10,color:"rgba(255,255,255,0.5)",textTransform:"uppercase",letterSpacing:0.5,display:"block",marginBottom:4}}>Senha</label><input style={{width:"100%",padding:"10px 14px",borderRadius:8,border:"1px solid rgba(255,255,255,0.15)",background:"rgba(255,255,255,0.05)",color:"white",fontSize:14,outline:"none",boxSizing:"border-box"}} type="password" value={lf.senha} onChange={e=>setLf(p=>({...p,senha:e.target.value}))} onKeyDown={e=>e.key==="Enter"&&doLogin()}/></div>
-          {lErr&&lErr!=="email"&&lErr!=="senha"&&<div style={{color:"#fca5a5",fontSize:12,marginBottom:12,padding:"8px 12px",background:"rgba(220,38,38,0.15)",borderRadius:8}}>{lErr}</div>}
-          {lErr==="email"&&<div style={{display:"flex",alignItems:"center",justifyContent:"center",padding:16,marginBottom:14,background:"rgba(220,38,38,0.12)",border:"1.5px dashed rgba(252,165,165,0.4)",borderRadius:10,textAlign:"center"}}><div><div style={{fontSize:24,marginBottom:4}}>&#128373;&#65039;</div><div style={{fontSize:13,fontWeight:700,color:"#fca5a5"}}>Opa, esse e-mail não foi encontrado!</div><div style={{fontSize:12,color:"rgba(255,255,255,0.5)",marginTop:4}}>Parece que você ainda não tem conta. <span onClick={()=>{setLoginMode("cadastro");setLErr("");}} style={{color:"#fca5a5",textDecoration:"underline",cursor:"pointer",fontWeight:600}}>Clique aqui para se cadastrar</span></div></div></div>}
-          {lErr==="senha"&&<div style={{display:"flex",alignItems:"center",justifyContent:"center",padding:16,marginBottom:14,background:"rgba(220,38,38,0.12)",border:"1.5px dashed rgba(252,165,165,0.4)",borderRadius:10,textAlign:"center"}}><div><div style={{fontSize:24,marginBottom:4}}>&#128274;</div><div style={{fontSize:13,fontWeight:700,color:"#fca5a5"}}>Senha incorreta!</div><div style={{fontSize:12,color:"rgba(255,255,255,0.5)",marginTop:4}}>Verifique sua senha e tente novamente.</div></div></div>}
-          <button onClick={doLogin} style={{width:"100%",padding:"12px",borderRadius:8,border:"none",background:loginMode==="admin"?"#dc2626":"white",color:loginMode==="admin"?"white":"#111",fontSize:14,fontWeight:700,cursor:"pointer"}}>{loginMode==="login"?"Entrar":loginMode==="cadastro"?"Criar conta":"Entrar como Admin"}</button>
+
+          {/* ─── VERIFICATION STEP ─── */}
+          {verifyStep ? (<div>
+            <button onClick={cancelVerify} style={{background:"none",border:"none",color:"rgba(255,255,255,0.5)",fontSize:12,cursor:"pointer",marginBottom:16,display:"flex",alignItems:"center",gap:4}}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M19 12H5M12 19l-7-7 7-7"/></svg> Voltar
+            </button>
+            <div style={{textAlign:"center",marginBottom:20}}>
+              <div style={{width:56,height:56,borderRadius:"50%",background:"rgba(220,38,38,0.15)",display:"flex",alignItems:"center",justifyContent:"center",margin:"0 auto 14px"}}>
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#fca5a5" strokeWidth="1.5"><rect x="2" y="4" width="20" height="16" rx="3"/><path d="M22 7l-10 7L2 7"/></svg>
+              </div>
+              <div style={{fontSize:18,fontWeight:700,color:"white",marginBottom:6}}>Verifique seu email</div>
+              <div style={{fontSize:13,color:"rgba(255,255,255,0.55)",lineHeight:1.5}}>
+                Enviamos um código de 6 dígitos para<br/>
+                <span style={{color:"#fca5a5",fontWeight:600}}>{lf.email}</span>
+              </div>
+            </div>
+
+            <div style={{marginBottom:20}}>
+              <CodeInput length={6} value={vInput} onChange={v=>{setVInput(v);setVErr("");}}/>
+            </div>
+
+            {vErr&&<div style={{padding:"10px 14px",background:"rgba(220,38,38,0.15)",borderRadius:8,marginBottom:14,fontSize:12,color:"#fca5a5",textAlign:"center"}}>{vErr}</div>}
+
+            <button onClick={doVerify} disabled={vInput.length<6} style={{width:"100%",padding:"12px",borderRadius:8,border:"none",background:vInput.length<6?"rgba(255,255,255,0.1)":"white",color:vInput.length<6?"rgba(255,255,255,0.3)":"#111",fontSize:14,fontWeight:700,cursor:vInput.length<6?"not-allowed":"pointer",transition:"all .2s",marginBottom:12}}>
+              Verificar e criar conta
+            </button>
+
+            <div style={{textAlign:"center"}}>
+              <span style={{fontSize:12,color:"rgba(255,255,255,0.4)"}}>Não recebeu? </span>
+              {vCooldown>0?(
+                <span style={{fontSize:12,color:"rgba(255,255,255,0.3)"}}>Reenviar em {vCooldown}s</span>
+              ):(
+                <button onClick={doResend} disabled={vSending} style={{background:"none",border:"none",color:"#fca5a5",fontSize:12,fontWeight:600,cursor:"pointer",textDecoration:"underline"}}>{vSending?"Enviando...":"Reenviar código"}</button>
+              )}
+            </div>
+          </div>)
+
+          /* ─── NORMAL LOGIN/REGISTER ─── */
+          : (<div>
+            <div style={{display:"flex",gap:0,marginBottom:20,background:"rgba(255,255,255,0.05)",borderRadius:8,overflow:"hidden"}}>
+              {[{m:"login",l:"Entrar"},{m:"cadastro",l:"Cadastro"},{m:"admin",l:"Admin"}].map(t=>(
+                <button key={t.m} onClick={()=>{setLoginMode(t.m);setLErr("");}} style={{flex:1,padding:"10px 0",border:"none",background:loginMode===t.m?"rgba(255,255,255,0.15)":"transparent",color:loginMode===t.m?"white":"rgba(255,255,255,0.5)",fontSize:12,fontWeight:loginMode===t.m?700:400,cursor:"pointer"}}>{t.l}</button>
+              ))}
+            </div>
+            {loginMode==="admin"&&<div style={{padding:"10px 14px",background:"rgba(220,38,38,0.15)",borderRadius:8,marginBottom:14,fontSize:12,color:"#fca5a5"}}>Acesso restrito a administradores.</div>}
+            {loginMode==="cadastro"&&<>
+              <div style={{marginBottom:12}}><label style={{fontSize:10,color:"rgba(255,255,255,0.5)",textTransform:"uppercase",letterSpacing:0.5,display:"block",marginBottom:4}}>Nome</label><input style={{width:"100%",padding:"10px 14px",borderRadius:8,border:"1px solid rgba(255,255,255,0.15)",background:"rgba(255,255,255,0.05)",color:"white",fontSize:14,outline:"none",boxSizing:"border-box"}} value={lf.nome} onChange={e=>setLf(p=>({...p,nome:e.target.value}))}/></div>
+              <div style={{marginBottom:12}}><label style={{fontSize:10,color:"rgba(255,255,255,0.5)",textTransform:"uppercase",letterSpacing:0.5,display:"block",marginBottom:4}}>Escola</label><input style={{width:"100%",padding:"10px 14px",borderRadius:8,border:"1px solid rgba(255,255,255,0.15)",background:"rgba(255,255,255,0.05)",color:"white",fontSize:14,outline:"none",boxSizing:"border-box"}} value={lf.escola} onChange={e=>setLf(p=>({...p,escola:e.target.value}))}/></div>
+              <div style={{marginBottom:12}}><label style={{fontSize:10,color:"rgba(255,255,255,0.5)",textTransform:"uppercase",letterSpacing:0.5,display:"block",marginBottom:4}}>Matérias (vírgula)</label><input style={{width:"100%",padding:"10px 14px",borderRadius:8,border:"1px solid rgba(255,255,255,0.15)",background:"rgba(255,255,255,0.05)",color:"white",fontSize:14,outline:"none",boxSizing:"border-box"}} value={lf.materia} onChange={e=>setLf(p=>({...p,materia:e.target.value}))} placeholder="Matemática, Português..."/></div>
+            </>}
+            <div style={{marginBottom:12}}><label style={{fontSize:10,color:"rgba(255,255,255,0.5)",textTransform:"uppercase",letterSpacing:0.5,display:"block",marginBottom:4}}>E-mail</label><input style={{width:"100%",padding:"10px 14px",borderRadius:8,border:"1px solid rgba(255,255,255,0.15)",background:"rgba(255,255,255,0.05)",color:"white",fontSize:14,outline:"none",boxSizing:"border-box"}} type="email" value={lf.email} onChange={e=>setLf(p=>({...p,email:e.target.value}))}/></div>
+            <div style={{marginBottom:16}}><label style={{fontSize:10,color:"rgba(255,255,255,0.5)",textTransform:"uppercase",letterSpacing:0.5,display:"block",marginBottom:4}}>Senha</label><input style={{width:"100%",padding:"10px 14px",borderRadius:8,border:"1px solid rgba(255,255,255,0.15)",background:"rgba(255,255,255,0.05)",color:"white",fontSize:14,outline:"none",boxSizing:"border-box"}} type="password" value={lf.senha} onChange={e=>setLf(p=>({...p,senha:e.target.value}))} onKeyDown={e=>e.key==="Enter"&&doLogin()}/></div>
+            {lErr&&lErr!=="email"&&lErr!=="senha"&&<div style={{color:"#fca5a5",fontSize:12,marginBottom:12,padding:"8px 12px",background:"rgba(220,38,38,0.15)",borderRadius:8}}>{lErr}</div>}
+            {lErr==="email"&&<div style={{display:"flex",alignItems:"center",justifyContent:"center",padding:16,marginBottom:14,background:"rgba(220,38,38,0.12)",border:"1.5px dashed rgba(252,165,165,0.4)",borderRadius:10,textAlign:"center"}}><div><div style={{fontSize:24,marginBottom:4}}>&#128373;&#65039;</div><div style={{fontSize:13,fontWeight:700,color:"#fca5a5"}}>E-mail não encontrado!</div><div style={{fontSize:12,color:"rgba(255,255,255,0.5)",marginTop:4}}><span onClick={()=>{setLoginMode("cadastro");setLErr("");}} style={{color:"#fca5a5",textDecoration:"underline",cursor:"pointer",fontWeight:600}}>Clique aqui para se cadastrar</span></div></div></div>}
+            {lErr==="senha"&&<div style={{display:"flex",alignItems:"center",justifyContent:"center",padding:16,marginBottom:14,background:"rgba(220,38,38,0.12)",border:"1.5px dashed rgba(252,165,165,0.4)",borderRadius:10,textAlign:"center"}}><div><div style={{fontSize:24,marginBottom:4}}>&#128274;</div><div style={{fontSize:13,fontWeight:700,color:"#fca5a5"}}>Senha incorreta!</div><div style={{fontSize:12,color:"rgba(255,255,255,0.5)",marginTop:4}}>Verifique e tente novamente.</div></div></div>}
+            {vSending&&loginMode==="cadastro"?(
+              <button disabled style={{width:"100%",padding:"12px",borderRadius:8,border:"none",background:"rgba(255,255,255,0.1)",color:"rgba(255,255,255,0.5)",fontSize:14,fontWeight:700,cursor:"not-allowed",display:"flex",alignItems:"center",justifyContent:"center",gap:8}}>
+                <svg width="16" height="16" viewBox="0 0 24 24" style={{animation:"spin 1s linear infinite"}}><circle cx="12" cy="12" r="10" stroke="rgba(255,255,255,0.3)" strokeWidth="3" fill="none"/><path d="M12 2a10 10 0 019.95 9" stroke="#fca5a5" strokeWidth="3" fill="none" strokeLinecap="round"/></svg>
+                Enviando código...
+              </button>
+            ):(
+              <button onClick={doLogin} style={{width:"100%",padding:"12px",borderRadius:8,border:"none",background:loginMode==="admin"?"#dc2626":"white",color:loginMode==="admin"?"white":"#111",fontSize:14,fontWeight:700,cursor:"pointer"}}>{loginMode==="login"?"Entrar":loginMode==="cadastro"?"Criar conta":"Entrar como Admin"}</button>
+            )}
+          </div>)}
         </div>
       </div>
+      <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
     </div>
   );
 
-  // Nav config
   const navItems=isAdm?[{id:PG.ADMIN,l:"Painel Admin"},{id:PG.CHAT,l:"Assistente IA"}]:[{id:PG.HOME,l:"Visão Geral"},{id:PG.CHAT,l:"Assistente IA"},{id:PG.TURMAS,l:"Turmas"},{id:PG.REL,l:"Relatórios"},{id:PG.OCO,l:"Ocorrências"},{id:PG.VISTOS,l:"Vistos"},{id:PG.CFG,l:"Configurações"},{id:PG.PERFIL,l:"Perfil"}];
 
   const content=()=>{
@@ -283,7 +395,34 @@ export default function App(){
             <input style={S.inp()} value={newAdm.senha} onChange={e=>setNewAdm(p=>({...p,senha:e.target.value}))} placeholder="Senha" type="password"/>
             <button onClick={()=>{admAddSub(newAdm.email,newAdm.nome,newAdm.senha);setNewAdm({email:"",nome:"",senha:""});}} style={S.btn()}>Add</button>
           </div>
-          {subAdm.map(a=><div key={a.email} style={{...S.rc,display:"flex",justifyContent:"space-between",alignItems:"center"}}><div><strong>{a.nome}</strong> <span style={{color:C.mut,fontSize:12}}>({a.email})</span></div><button onClick={()=>admRmSub(a.email)} style={S.btn("danger",true)}>Remover</button></div>)}
+          {subAdm.map(a=>{const isExp=expandedAdm===a.email;return(
+            <div key={a.email} style={{...S.rc,marginBottom:10}}>
+              <div onClick={()=>setExpandedAdm(isExp?null:a.email)} style={{display:"flex",justifyContent:"space-between",alignItems:"center",cursor:"pointer"}}>
+                <div style={{display:"flex",gap:8,alignItems:"center"}}><strong>{a.nome}</strong><span style={{color:C.mut,fontSize:12}}>({a.email})</span>{a.blocked&&<span style={S.bdg("#dc2626")}>Bloqueado</span>}</div>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={C.mut} strokeWidth="2" style={{transform:isExp?"rotate(180deg)":"",transition:"transform .2s"}}><path d="M6 9l6 6 6-6"/></svg>
+              </div>
+              {isExp&&<div style={{marginTop:14,paddingTop:14,borderTop:`1px solid ${C.brd}`}}>
+                <div style={{display:"flex",gap:8,marginBottom:12,flexWrap:"wrap"}}>
+                  <button onClick={()=>admUpdateSub(a.email,{blocked:!a.blocked})} style={S.btn(a.blocked?"primary":"ghost",true)}>{a.blocked?"Desbloquear":"Bloquear"}</button>
+                  <button onClick={()=>admRmSub(a.email)} style={S.btn("danger",true)}>Deletar</button>
+                </div>
+                <div style={{marginBottom:12}}><label style={S.lbl}>Alterar senha</label><div style={{display:"flex",gap:8}}><input style={S.inp()} value={editAdmPw} onChange={e=>setEditAdmPw(e.target.value)} placeholder="Nova senha" type="password"/><button onClick={()=>{if(editAdmPw.length>=6){admUpdateSub(a.email,{senha:editAdmPw});setEditAdmPw("");}}} style={S.btn("secondary",true)}>Salvar</button></div></div>
+                <div style={{marginBottom:8}}><label style={S.lbl}>Permissões</label></div>
+                <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:4}}>
+                  {ALL_PERMS.map(p=>{const has=(a.perms||[]).includes(p);return(
+                    <div key={p} onClick={()=>{const np=has?(a.perms||[]).filter(x=>x!==p):[...(a.perms||[]),p];admUpdateSub(a.email,{perms:np});}} style={{display:"flex",alignItems:"center",gap:6,padding:"6px 10px",borderRadius:6,cursor:"pointer",background:has?`${C.accent}08`:"#f9fafb",border:`1px solid ${has?C.accent+"30":C.brd}`,userSelect:"none"}}>
+                      <div style={{width:14,height:14,borderRadius:3,border:`2px solid ${has?C.accent:"#d1d5db"}`,background:has?C.accent:"white",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>{has&&<svg width="8" height="8" viewBox="0 0 10 10"><path d="M2 5l2 2 4-4" stroke="white" strokeWidth="1.5" fill="none"/></svg>}</div>
+                      <span style={{fontSize:11,color:has?C.txt:C.mut}}>{PERM_LABELS[p]}</span>
+                    </div>);})}
+                </div>
+                <div style={{marginTop:12}}><label style={S.lbl}>Atividades deste admin</label>
+                  <div style={{maxHeight:150,overflowY:"auto",fontSize:11}}>
+                    {logs.filter(l=>l.user===a.email).slice(0,20).map(l=><div key={l.id} style={{padding:"4px 0",borderBottom:`1px solid ${C.brd}`,display:"flex",gap:8}}><span style={{color:C.mut,minWidth:120}}>{l.time}</span><span>{l.action}</span></div>)}
+                    {logs.filter(l=>l.user===a.email).length===0&&<div style={{color:C.mut}}>Sem atividades.</div>}
+                  </div>
+                </div>
+              </div>}
+            </div>);})}
         </div>}
         <div style={S.card}><p style={S.ct}>Professores ({ps.length})</p>
           {ps.length===0?<div style={{color:C.mut}}>Nenhum.</div>:
@@ -337,37 +476,36 @@ export default function App(){
       </div>
       <div style={S.card}><p style={S.ct}>Atividade</p>
         <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(150px,1fr))",gap:12}}>
-          {[{l:"Aulas hoje",v:relHoje},{l:"Total relatórios",v:rels.length},{l:"Horários preenchidos",v:totalSlots}].map(s=><div key={s.l} style={{background:`${C.accent}10`,borderRadius:8,padding:16,textAlign:"center"}}><div style={{fontSize:28,fontWeight:800,color:C.accent}}>{s.v}</div><div style={{fontSize:11,color:C.mut,marginTop:2}}>{s.l}</div></div>)}
+          {[{l:"Aulas hoje",v:relHoje},{l:"Total relatórios",v:rels.length},{l:"Horários",v:totalSlots}].map(s=><div key={s.l} style={{background:`${C.accent}10`,borderRadius:8,padding:16,textAlign:"center"}}><div style={{fontSize:28,fontWeight:800,color:C.accent}}>{s.v}</div><div style={{fontSize:11,color:C.mut,marginTop:2}}>{s.l}</div></div>)}
         </div>
       </div>
       <div style={S.card}>
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}><p style={{...S.ct,margin:0}}>Grade de horários</p>
-          <div style={{display:"flex",gap:6}}><input ref={hrRef} type="file" accept=".pdf,image/*" onChange={handleHrPdf} style={{display:"none"}}/><button onClick={()=>hrRef.current?.click()} style={S.btn("secondary",true)} disabled={hrPdfLd}>{hrPdfLd?"Processando...":"Importar PDF/Foto"}</button><button onClick={()=>setEditHr(!editHr)} style={S.btn("ghost",true)}>{editHr?"Fechar":"Editar"}</button></div>
+          <div style={{display:"flex",gap:6}}><input ref={hrRef} type="file" accept=".pdf,image/*" onChange={handleHrPdf} style={{display:"none"}}/><button onClick={()=>hrRef.current?.click()} style={S.btn("secondary",true)} disabled={hrPdfLd}>{hrPdfLd?"...":"Importar PDF/Foto"}</button><button onClick={()=>setEditHr(!editHr)} style={S.btn("ghost",true)}>{editHr?"Fechar":"Editar"}</button></div>
         </div>
         <div style={{overflowX:"auto"}}><table style={{width:"100%",borderCollapse:"collapse",minWidth:600}}><thead><tr><th style={S.th}>Hora</th>{DIAS.map(d=><th key={d} style={S.th}>{d}</th>)}</tr></thead><tbody>{HORAS.map(h=><tr key={h}><td style={{...S.td,fontWeight:600,fontSize:12,color:C.mut,width:60}}>{h}</td>{DIAS.map(d=>{const k=`${d}_${h}`,v=hrs[k]||"";return<td key={d} style={{...S.td,padding:"4px 6px"}}>{editHr?<input style={{...S.inp(),fontSize:11,padding:"4px 6px"}} value={v} onChange={e=>svHr(d,h,e.target.value)} placeholder="—"/>:<span style={{fontSize:12,color:v?C.txt:C.mut}}>{v||"—"}</span>}</td>;})}</tr>)}</tbody></table></div>
       </div>
     </div>);
 
     // CHAT
-    if(page===PG.CHAT) return(<div style={{display:"flex",flexDirection:"column",height:"calc(100vh - 56px)",position:"relative"}}>
-      <video autoPlay muted loop playsInline style={{position:"absolute",top:0,left:0,width:"100%",height:"100%",objectFit:"cover",opacity:0.08,zIndex:0,borderRadius:8}} src="https://files.catbox.moe/jcmrss.mp4"/>
-      <div style={{position:"relative",zIndex:1,display:"flex",flexDirection:"column",height:"100%"}}>
-      <h2 style={S.pt}>          <LedImg size={30} style={{border:`2px solid ${C.accent}`}}/> Assistente Led <span style={{color:C.accent}}>AI</span></h2>
-      <div style={{...S.card,flex:1,overflowY:"auto",display:"flex",flexDirection:"column",gap:10}}>
+    if(page===PG.CHAT) return(<div style={{display:"flex",flexDirection:"column",height:"calc(100vh - 56px)"}}>
+      <h2 style={S.pt}><LedImg size={30} style={{border:`2px solid ${C.accent}`}}/> Assistente Led <span style={{color:C.accent}}>AI</span></h2>
+      <div style={{...S.card,flex:1,overflowY:"auto",display:"flex",flexDirection:"column",gap:10,position:"relative",overflow:"hidden"}}>
+        <video autoPlay muted loop playsInline style={{position:"absolute",top:0,left:0,width:"100%",height:"100%",objectFit:"cover",opacity:0.07,zIndex:0,pointerEvents:"none"}} src="https://files.catbox.moe/jcmrss.mp4"/>
+        <div style={{position:"relative",zIndex:1,display:"flex",flexDirection:"column",gap:10,flex:1}}>
         {chat.map((m,i)=>{const ai=m.role==="assistant";return(
           <div key={i} style={{display:"flex",justifyContent:ai?"flex-start":"flex-end",gap:8}}>
             {ai&&<LedImg size={30} style={{border:`1.5px solid ${C.accent}`}}/>}
             <div style={{maxWidth:"76%",padding:"10px 14px",borderRadius:ai?"2px 14px 14px 14px":"14px 2px 14px 14px",background:ai?`${C.accent}08`:C.accent,color:ai?C.txt:"white",fontSize:13,lineHeight:1.7,border:ai?`1px solid ${C.accent}20`:"none",whiteSpace:"pre-wrap"}}>{m.content}</div>
             {!ai&&<Avatar size={28}/>}
-          </div>
-        );})}
+          </div>);})}
         {ld&&<div style={{display:"flex",gap:6,alignItems:"center",padding:"10px 14px",background:`${C.accent}08`,borderRadius:"2px 14px 14px 14px",width:"fit-content",border:`1px solid ${C.accent}20`}}><LedImg size={28}/>{[0,1,2].map(i=><div key={i} style={{width:7,height:7,borderRadius:"50%",background:C.accent,animation:"bounce 1s infinite",animationDelay:`${i*.2}s`}}/>)}</div>}
         <div ref={btmRef}/>
         </div>
       </div>
       {sugs.length>0&&<div style={{display:"flex",gap:6,flexWrap:"wrap",padding:"8px 0"}}>{sugs.map((s,i)=><button key={i} onClick={()=>send(s)} style={{...S.btn("secondary"),borderRadius:20,fontSize:12}}>{s}</button>)}</div>}
       {mm&&<div style={{...S.card,marginTop:8}}><div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}><strong style={{fontSize:13}}>{mm.titulo}</strong><button onClick={()=>{setMm(null);sv("mm",null);}} style={S.btn("ghost",true)}>Fechar</button></div><MindMap data={mm}/></div>}
-      <div style={{display:"flex",gap:8,marginTop:8}}>
+      <div style={{display:"flex",gap:8,marginTop:8,position:"relative",zIndex:2}}>
         <textarea value={inp} onChange={e=>setInp(e.target.value)} onKeyDown={e=>{if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();send();}}} placeholder="Pergunte sobre turmas, peça planos..." rows={2} style={{...S.inp(),flex:1,resize:"none",borderRadius:12}}/>
         <button onClick={()=>send()} disabled={ld||!inp.trim()} style={{...S.btn(),padding:"0 20px",borderRadius:12,opacity:ld||!inp.trim()?0.4:1}}>Enviar</button>
       </div>
@@ -378,9 +516,9 @@ export default function App(){
     if(page===PG.TURMAS){
       if(selT){const al=selT.alunos||[];return(<div>
         <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:20}}><button onClick={()=>setSelT(null)} style={S.btn("ghost")}>Voltar</button><h2 style={{...S.pt,margin:0,border:"none",paddingBottom:0}}>Turma {selT.nome}</h2><span style={{...S.bdg(),marginLeft:"auto"}}>{al.length} aluno{al.length!==1?"s":""}</span></div>
-        <div style={S.card}><p style={S.ct}>Importar alunos</p><div style={{display:"flex",gap:8}}><input ref={fileRef} type="file" accept=".pdf" onChange={handlePdf} style={{display:"none"}}/><button onClick={()=>fileRef.current?.click()} style={S.btn("secondary")} disabled={pdfLd}>{pdfLd?"...":"PDF"}</button><button onClick={()=>setAlunoMode(!alunoMode)} style={S.btn("ghost")}>{alunoMode?"Ocultar":"Manual"}</button></div>
+        <div style={S.card}><p style={S.ct}>Importar alunos (PDF ou Foto)</p><div style={{display:"flex",gap:8}}><input ref={fileRef} type="file" accept=".pdf,image/*" onChange={handleFileImport} style={{display:"none"}}/><button onClick={()=>fileRef.current?.click()} style={S.btn("secondary")} disabled={pdfLd}>{pdfLd?"Processando...":"Selecionar PDF ou Foto"}</button><button onClick={()=>setAlunoMode(!alunoMode)} style={S.btn("ghost")}>{alunoMode?"Ocultar":"Manual"}</button></div>
           {pdfRes&&pdfRes!=="erro"&&<div style={{marginTop:14}}><div style={{maxHeight:200,overflowY:"auto",border:`1px solid ${C.brd}`,borderRadius:6}}><table style={{width:"100%",borderCollapse:"collapse"}}><thead><tr><th style={S.th}>Nome</th><th style={S.th}>Nasc.</th></tr></thead><tbody>{pdfRes.map((a,i)=><tr key={i}><td style={S.td}><input value={a.nome} onChange={e=>{const r=[...pdfRes];r[i]={...r[i],nome:e.target.value};setPdfRes(r);}} style={{...S.inp(),border:"none",background:"transparent",padding:0}}/></td><td style={S.td}><input value={a.nascimento} onChange={e=>{const r=[...pdfRes];r[i]={...r[i],nascimento:e.target.value};setPdfRes(r);}} style={{...S.inp(),border:"none",background:"transparent",padding:0}}/></td></tr>)}</tbody></table></div><div style={{display:"flex",gap:8,marginTop:10}}><button onClick={confirmPdf} style={S.btn()}>Confirmar</button><button onClick={()=>setPdfRes(null)} style={S.btn("ghost")}>Cancelar</button></div></div>}
-          {pdfRes==="erro"&&<div style={{marginTop:10,color:C.dng,fontSize:12}}>Erro.</div>}
+          {pdfRes==="erro"&&<div style={{marginTop:10,color:C.dng,fontSize:12}}>Erro ao processar.</div>}
         </div>
         {alunoMode&&<div style={S.card}><div style={{display:"flex",gap:8,alignItems:"flex-end",flexWrap:"wrap"}}><div style={{flex:2}}><label style={S.lbl}>Nome</label><input style={S.inp()} value={nAlu.nome} onChange={e=>setNAlu(p=>({...p,nome:e.target.value}))}/></div><div style={{flex:1}}><label style={S.lbl}>Nasc.</label><input style={S.inp()} value={nAlu.nasc} onChange={e=>setNAlu(p=>({...p,nasc:e.target.value}))} placeholder="DD/MM/AAAA"/></div><button onClick={addAlu} style={S.btn()}>Add</button></div></div>}
         {editAlu&&<div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.3)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:200}}><div style={{...S.card,width:360,marginBottom:0}}><div style={{marginBottom:10}}><label style={S.lbl}>Nome</label><input style={S.inp()} value={editAlu.nome} onChange={e=>setEditAlu(p=>({...p,nome:e.target.value}))}/></div><div style={{marginBottom:14}}><label style={S.lbl}>Nasc.</label><input style={S.inp()} value={editAlu.nascimento} onChange={e=>setEditAlu(p=>({...p,nascimento:e.target.value}))}/></div><div style={{display:"flex",gap:8}}><button onClick={svEditAlu} style={S.btn()}>Salvar</button><button onClick={()=>setEditAlu(null)} style={S.btn("ghost")}>Cancelar</button></div></div></div>}
@@ -391,12 +529,12 @@ export default function App(){
 
     // RELATORIOS
     if(page===PG.REL){const fl=fRel?rels.filter(r=>r.turma===fRel):rels;const ms=mats();return(<div><h2 style={S.pt}>Relatórios</h2>
-      <div style={S.card}><p style={S.ct}>Novo relatório</p>
+      <div style={S.card}><p style={S.ct}>Novo</p>
         <div style={{display:"flex",gap:12,marginBottom:12,flexWrap:"wrap"}}><div style={{flex:"0 0 180px"}}><label style={S.lbl}>Turma</label><select style={S.sel()} value={nRel.turma} onChange={e=>setNRel(p=>({...p,turma:e.target.value}))}><option value="">Selecione</option>{turmas.map(t=><option key={t.nome}>{t.nome}</option>)}</select></div><div style={{flex:1}}><label style={S.lbl}>Assunto</label><input style={S.inp()} value={nRel.assunto} onChange={e=>setNRel(p=>({...p,assunto:e.target.value}))}/></div></div>
         {ms.length>0&&<div style={{marginBottom:12}}><label style={{...S.lbl,color:relErr.mat?"#dc2626":C.mut}}>Matéria *</label><div style={{display:"flex",gap:6,flexWrap:"wrap"}}>{ms.map(m=><button key={m} onClick={()=>{setNRel(p=>({...p,materia:p.materia===m?"":m}));setRelErr(p=>({...p,mat:false}));}} style={{padding:"6px 14px",borderRadius:20,border:`1.5px solid ${nRel.materia===m?C.accent:"#d1d5db"}`,background:nRel.materia===m?C.accent:"white",color:nRel.materia===m?"white":"#374151",fontSize:12,fontWeight:nRel.materia===m?600:400,cursor:"pointer"}}>{m}</button>)}</div>{relErr.mat&&<div style={{fontSize:11,color:"#dc2626",marginTop:4}}>Selecione!</div>}</div>}
         <div style={{marginBottom:12}}><label style={{...S.lbl,color:relErr.obs?"#dc2626":C.mut}}>Descrição *</label><textarea style={{...S.inp(),height:68,resize:"vertical",borderColor:relErr.obs?"#dc2626":"#e5e7eb"}} value={nRel.obs} onChange={e=>{setNRel(p=>({...p,obs:e.target.value}));if(e.target.value.trim())setRelErr(p=>({...p,obs:false}));}}/></div>
         {relErr.obs&&<div style={{display:"flex",alignItems:"center",justifyContent:"center",padding:16,marginBottom:14,background:"linear-gradient(135deg,#fef2f2,#fff1f2)",border:"1.5px dashed #fca5a5",borderRadius:10,textAlign:"center"}}><div><div style={{fontSize:24,marginBottom:4}}>&#128221;</div><div style={{fontSize:13,fontWeight:700,color:"#b91c1c"}}>Epa, cadê a descrição?</div><div style={{fontSize:12,color:"#991b1b"}}>Relatório sem descrição é tipo prova sem nome!</div></div></div>}
-        <button onClick={addRelFixed} style={S.btn()}>Salvar</button>
+        <button onClick={addRel} style={S.btn()}>Salvar</button>
       </div>
       {rels.length>0&&<div style={S.card}><div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}><p style={{...S.ct,margin:0}}>Registrados — {fl.length}</p><select style={{...S.sel("auto"),minWidth:140}} value={fRel} onChange={e=>setFRel(e.target.value)}><option value="">Todas</option>{[...new Set(rels.map(r=>r.turma))].filter(Boolean).map(t=><option key={t}>{t}</option>)}</select></div>
         {fl.map(r=><div key={r.id} style={S.rc}><div style={{display:"flex",justifyContent:"space-between"}}><div><div style={{display:"flex",gap:8,alignItems:"center",marginBottom:4}}><strong>{r.turma}</strong>{r.materia&&<span style={S.bdg()}>{r.materia}</span>}</div><div style={{fontSize:13}}>{r.assunto}</div>{r.obs&&<div style={{fontSize:12,color:C.mut,marginTop:4}}>{r.obs}</div>}</div><button onClick={()=>rmRec("rels",setRels,rels,r.id)} style={S.btn("danger",true)}>Rm</button></div><div style={{fontSize:11,color:C.mut,marginTop:6}}>{r.registradoEm}</div></div>)}
@@ -409,7 +547,7 @@ export default function App(){
         <div style={{display:"flex",gap:12,marginBottom:12,flexWrap:"wrap"}}><div style={{flex:"0 0 180px"}}><label style={S.lbl}>Turma</label><select style={S.sel()} value={nOco.turma} onChange={e=>setNOco(p=>({...p,turma:e.target.value,aluno:[]}))}><option value="">Selecione</option>{turmas.map(t=><option key={t.nome}>{t.nome}</option>)}</select></div><div style={{flex:"0 0 200px"}}><label style={S.lbl}>Tipo</label><select style={S.sel()} value={nOco.tipo} onChange={e=>setNOco(p=>({...p,tipo:e.target.value}))}><option value="">Selecione</option>{TIPOS_OCO.map(t=><option key={t}>{t}</option>)}</select></div></div>
         {nOco.turma&&<div style={{marginBottom:12}}><Checklist items={aluOf(nOco.turma)} selected={nOco.aluno} onChange={s=>setNOco(p=>({...p,aluno:s}))} label="Alunos"/></div>}
         <div style={{marginBottom:12}}><label style={{...S.lbl,color:ocoErr?"#dc2626":C.mut}}>Descrição *</label><textarea style={{...S.inp(),height:78,resize:"vertical",borderColor:ocoErr?"#dc2626":"#e5e7eb"}} value={nOco.desc} onChange={e=>{setNOco(p=>({...p,desc:e.target.value}));if(e.target.value.trim())setOcoErr(false);}}/></div>
-        {ocoErr&&<div style={{display:"flex",alignItems:"center",justifyContent:"center",padding:16,marginBottom:14,background:"linear-gradient(135deg,#fef2f2,#fff1f2)",border:"1.5px dashed #fca5a5",borderRadius:10,textAlign:"center"}}><div><div style={{fontSize:24,marginBottom:4}}>&#9997;&#65039;</div><div style={{fontSize:13,fontWeight:700,color:"#b91c1c"}}>Calma aí, professor(a)!</div><div style={{fontSize:12,color:"#991b1b"}}>Sem descrição, a ocorrência fica mais perdida que aluno sem caderno na segunda-feira!</div></div></div>}
+        {ocoErr&&<div style={{display:"flex",alignItems:"center",justifyContent:"center",padding:16,marginBottom:14,background:"linear-gradient(135deg,#fef2f2,#fff1f2)",border:"1.5px dashed #fca5a5",borderRadius:10,textAlign:"center"}}><div><div style={{fontSize:24,marginBottom:4}}>&#9997;&#65039;</div><div style={{fontSize:13,fontWeight:700,color:"#b91c1c"}}>Calma aí, professor(a)!</div><div style={{fontSize:12,color:"#991b1b"}}>Sem descrição, a ocorrência fica mais perdida que aluno sem caderno na segunda!</div></div></div>}
         <button onClick={addOco} style={{...S.btn(),opacity:nOco.aluno.length===0?0.4:1}} disabled={nOco.aluno.length===0}>Registrar</button>
       </div>
       {ocos.length>0&&<div style={S.card}><div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}><p style={{...S.ct,margin:0}}>Ocorrências — {ocos.length}</p><select style={{...S.sel("auto"),minWidth:140}} value={fOco} onChange={e=>setFOco(e.target.value)}><option value="">Todas</option>{tco.map(t=><option key={t}>{t}</option>)}</select></div>
@@ -442,7 +580,7 @@ export default function App(){
     <div style={{display:"flex",minHeight:"100vh",background:"#f3f4f6",fontFamily:"'Inter','Segoe UI',sans-serif",color:"#111827",fontSize:14}}>
       <div style={{width:215,background:sbColor,display:"flex",flexDirection:"column",position:"fixed",top:0,left:0,bottom:0,zIndex:100}}>
         <div style={{padding:"18px 16px 14px",borderBottom:"1px solid rgba(255,255,255,0.15)"}}>
-          <div style={{display:"flex",alignItems:"center",gap:10}}><LedImg size={36}/>            <div><div style={{fontWeight:800,fontSize:16,color:"white"}}>Led <span style={{color:"#fca5a5"}}>AI</span></div><div style={{fontSize:8,color:"rgba(255,255,255,0.4)",letterSpacing:1}}>PLATAFORMA PEDAGÓGICA</div></div></div>
+          <div style={{display:"flex",alignItems:"center",gap:10}}><LedImg size={36}/><div><div style={{fontWeight:800,fontSize:16,color:"white"}}>Led <span style={{color:"#fca5a5"}}>AI</span></div><div style={{fontSize:8,color:"rgba(255,255,255,0.4)",letterSpacing:1}}>PLATAFORMA PEDAGÓGICA</div></div></div>
           {user&&<div style={{display:"flex",alignItems:"center",gap:8,marginTop:12}}><Avatar size={28}/><div style={{overflow:"hidden",flex:1}}><div style={{fontSize:11,color:"white",fontWeight:600,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{user.nome}</div><div style={{fontSize:9,color:"rgba(255,255,255,0.5)"}}>{isAdm?"Administrador":user.email}</div></div></div>}
           {admView&&<button onClick={admExit} style={{marginTop:8,width:"100%",padding:"6px",borderRadius:6,border:"1px solid rgba(255,255,255,0.3)",background:"rgba(255,255,255,0.1)",color:"white",fontSize:11,cursor:"pointer"}}>Voltar ao Admin</button>}
         </div>
