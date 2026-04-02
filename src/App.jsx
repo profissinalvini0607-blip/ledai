@@ -2,15 +2,6 @@ import { useState, useRef, useEffect } from "react";
 
 import { db } from './storage.js';
 
-import { useState, useRef, useEffect } from "react";
-
-const db = {
-  async get(k) { try { const r = await window.storage.get(k); return r ? JSON.parse(r.value) : null; } catch { return null; } },
-  async set(k, v) { try { await window.storage.set(k, JSON.stringify(v)); } catch {} },
-  async getShared(k) { try { const r = await window.storage.get(k, true); return r ? JSON.parse(r.value) : null; } catch { return null; } },
-  async setShared(k, v) { try { await window.storage.set(k, JSON.stringify(v), true); } catch {} }
-};
-
 const SERIES_BASE=["1º Ano EF","2º Ano EF","3º Ano EF","4º Ano EF","5º Ano EF","6º Ano EF","7º Ano EF","8º Ano EF","9º Ano EF","1º Ano EM","2º Ano EM","3º Ano EM"];
 const LETRAS=["A","B","C","D","E","F","G","H"];
 const TIPOS_OCO=["Indisciplina","Falta injustificada","Atraso","Dificuldade de aprendizagem","Conflito entre alunos","Elogio/Destaque","Outro"];
