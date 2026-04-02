@@ -2,6 +2,15 @@ import { useState, useRef, useEffect } from "react";
 
 import { db } from './storage.js';
 
+import { useState, useRef, useEffect } from "react";
+
+const db = {
+  async get(k) { try { const r = await window.storage.get(k); return r ? JSON.parse(r.value) : null; } catch { return null; } },
+  async set(k, v) { try { await window.storage.set(k, JSON.stringify(v)); } catch {} },
+  async getShared(k) { try { const r = await window.storage.get(k, true); return r ? JSON.parse(r.value) : null; } catch { return null; } },
+  async setShared(k, v) { try { await window.storage.set(k, JSON.stringify(v), true); } catch {} }
+};
+
 const SERIES_BASE=["1º Ano EF","2º Ano EF","3º Ano EF","4º Ano EF","5º Ano EF","6º Ano EF","7º Ano EF","8º Ano EF","9º Ano EF","1º Ano EM","2º Ano EM","3º Ano EM"];
 const LETRAS=["A","B","C","D","E","F","G","H"];
 const TIPOS_OCO=["Indisciplina","Falta injustificada","Atraso","Dificuldade de aprendizagem","Conflito entre alunos","Elogio/Destaque","Outro"];
@@ -10,7 +19,7 @@ const DIAS=["Segunda","Terça","Quarta","Quinta","Sexta"];
 const HORAS=["07:00","07:50","08:40","09:30","10:20","11:10","13:00","13:50","14:40","15:30","16:20"];
 const ADM_EMAIL="viniciussilva3764@gmail.com";
 const ADM_SENHA="Edimilsonsilva40.";
-const LEDAI_URL="https://i.postimg.cc/CLfZrtLY/Gemini-Generated-Image-qdzld0qdzld0qdzl.png";
+const LEDAI_URL="https://i.postimg.cc/XqbSgp2S/Whats-App-Image-2026-04-01-at-21-17-50.jpg";
 const LEDAI_FB="data:image/svg+xml,"+encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 80 80"><rect width="80" height="80" rx="16" fill="#b91c1c"/><text x="50%" y="54%" dominant-baseline="middle" text-anchor="middle" font-size="28" font-weight="800" fill="white" font-family="sans-serif">L</text></svg>');
 const GREETS=["E aí, professor(a)! Tô ligado e pronto pra ajudar. O que vamos planejar hoje?","Fala, mestre! Seu assistente pedagógico favorito tá on. Bora trabalhar?","Opa! LedAI na área. Me conta, qual turma vai dar trabalho hoje?"];
 const TIPS=["Dica: me peça 'plano de aula' + turma + assunto!","Sabia que posso sugerir o próximo conteúdo baseado no histórico?","Tenta: 'O que trabalhar depois com o 7º Ano EF A?'"];
@@ -228,13 +237,13 @@ export default function App(){
   // ── LOGIN ─────────────────────────────────────────────────────────────────
   if(page===PG.PERFIL&&!user) return(
     <div style={{minHeight:"100vh",background:"#0a0a1a",display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"'Inter',sans-serif",position:"relative",overflow:"hidden"}}>
-      <video autoPlay muted loop playsInline style={{position:"absolute",top:0,left:0,width:"100%",height:"100%",objectFit:"cover",opacity:0.4,zIndex:0}} src="https://drive.google.com/uc?export=download&id=1Yf6v9phhrn4fIgWthcWidsvdjz2zGLH5"/>
-      <div style={{position:"absolute",inset:0,background:"linear-gradient(135deg,rgba(26,26,46,0.7),rgba(22,33,62,0.6),rgba(15,52,96,0.7))",zIndex:1}}/>
+      <video autoPlay muted loop playsInline style={{position:"absolute",top:0,left:0,width:"100%",height:"100%",objectFit:"cover",opacity:0.35,zIndex:0}} src="https://files.catbox.moe/d18l2f.mp4"/>
+      <div style={{position:"absolute",inset:0,background:"linear-gradient(135deg,rgba(26,26,46,0.75),rgba(22,33,62,0.65),rgba(15,52,96,0.75))",zIndex:1}}/>
       <div style={{position:"absolute",bottom:12,left:0,right:0,textAlign:"center",fontSize:12,color:"rgba(255,255,255,0.3)",letterSpacing:1.5,fontWeight:600,zIndex:2}}>By: Vinicius Silva</div>
       <div style={{width:400,maxWidth:"90vw",zIndex:2,position:"relative"}}>
         <div style={{textAlign:"center",marginBottom:28}}>
           <div style={{display:"flex",justifyContent:"center",marginBottom:12}}><LedImg size={64} style={{borderRadius:16,border:"2px solid rgba(255,255,255,0.15)"}}/></div>
-          <div style={{fontSize:26,fontWeight:800,color:"white",letterSpacing:-1}}>LedAI</div>
+          <div style={{fontSize:26,fontWeight:800,color:"white",letterSpacing:-1}}>Led <span style={{color:"#fca5a5"}}>AI</span></div>
           <div style={{fontSize:12,color:"rgba(255,255,255,0.5)",marginTop:4}}>Plataforma Pedagógica Inteligente</div>
         </div>
         <div style={{background:"rgba(255,255,255,0.07)",backdropFilter:"blur(20px)",borderRadius:16,padding:28,border:"1px solid rgba(255,255,255,0.1)"}}>
@@ -350,7 +359,7 @@ export default function App(){
 
     // CHAT
     if(page===PG.CHAT) return(<div style={{display:"flex",flexDirection:"column",height:"calc(100vh - 56px)"}}>
-      <h2 style={S.pt}><LedImg size={30} style={{border:`2px solid ${C.accent}`}}/> Assistente LedAI</h2>
+      <h2 style={S.pt}>          <LedImg size={30} style={{border:`2px solid ${C.accent}`}}/> Assistente Led <span style={{color:C.accent}}>AI</span></h2>
       <div style={{...S.card,flex:1,overflowY:"auto",display:"flex",flexDirection:"column",gap:10}}>
         {chat.map((m,i)=>{const ai=m.role==="assistant";return(
           <div key={i} style={{display:"flex",justifyContent:ai?"flex-start":"flex-end",gap:8}}>
@@ -439,7 +448,7 @@ export default function App(){
     <div style={{display:"flex",minHeight:"100vh",background:"#f3f4f6",fontFamily:"'Inter','Segoe UI',sans-serif",color:"#111827",fontSize:14}}>
       <div style={{width:215,background:sbColor,display:"flex",flexDirection:"column",position:"fixed",top:0,left:0,bottom:0,zIndex:100}}>
         <div style={{padding:"18px 16px 14px",borderBottom:"1px solid rgba(255,255,255,0.15)"}}>
-          <div style={{display:"flex",alignItems:"center",gap:10}}><LedImg size={36}/><div><div style={{fontWeight:800,fontSize:16,color:"white"}}>LedAI</div><div style={{fontSize:8,color:"rgba(255,255,255,0.4)",letterSpacing:1}}>PLATAFORMA PEDAGÓGICA</div></div></div>
+          <div style={{display:"flex",alignItems:"center",gap:10}}><LedImg size={36}/>            <div><div style={{fontWeight:800,fontSize:16,color:"white"}}>Led <span style={{color:"#fca5a5"}}>AI</span></div><div style={{fontSize:8,color:"rgba(255,255,255,0.4)",letterSpacing:1}}>PLATAFORMA PEDAGÓGICA</div></div></div>
           {user&&<div style={{display:"flex",alignItems:"center",gap:8,marginTop:12}}><Avatar size={28}/><div style={{overflow:"hidden",flex:1}}><div style={{fontSize:11,color:"white",fontWeight:600,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{user.nome}</div><div style={{fontSize:9,color:"rgba(255,255,255,0.5)"}}>{isAdm?"Administrador":user.email}</div></div></div>}
           {admView&&<button onClick={admExit} style={{marginTop:8,width:"100%",padding:"6px",borderRadius:6,border:"1px solid rgba(255,255,255,0.3)",background:"rgba(255,255,255,0.1)",color:"white",fontSize:11,cursor:"pointer"}}>Voltar ao Admin</button>}
         </div>
