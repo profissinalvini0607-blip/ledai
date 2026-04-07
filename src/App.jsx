@@ -186,7 +186,7 @@ export default function App(){
       const b=await new Promise((r,j)=>{const x=new FileReader();x.onload=()=>r(x.result.split(",")[1]);x.onerror=j;x.readAsDataURL(f);});
       const mt=f.type||"application/pdf";
       const dt=mt.startsWith("image/")?"image":"document";
-      const rr=await fetch("https://api./api/chat",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({model:"claude-sonnet-4-20250514",max_tokens:1200,system:'Extraia alunos. JSON: {"alunos":[{"nome":"N","nascimento":"DD/MM/AAAA"}]}. Sem nascimento use "".',messages:[{role:"user",content:[{type:dt,source:{type:"base64",media_type:mt,data:b}},{type:"text",text:"Extraia a lista de alunos com nome e nascimento."}]}]})});
+      const rr=await fetch("./api/chat",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({model:"claude-sonnet-4-20250514",max_tokens:1200,system:'Extraia alunos. JSON: {"alunos":[{"nome":"N","nascimento":"DD/MM/AAAA"}]}. Sem nascimento use "".',messages:[{role:"user",content:[{type:dt,source:{type:"base64",media_type:mt,data:b}},{type:"text",text:"Extraia a lista de alunos com nome e nascimento."}]}]})});
       const d=await rr.json();const p=JSON.parse((d.content?.map(x=>x.text||"").join("")||"").replace(/```json|```/g,"").trim());
       setPdfRes(p.alunos||[]);
     }catch{setPdfRes("erro");}
